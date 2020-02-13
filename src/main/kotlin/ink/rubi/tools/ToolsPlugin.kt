@@ -18,7 +18,7 @@ import kotlin.math.sin
 
 @Plugin(
     id = "rubi-tools-plugin", name = "rubi tools plugin", version = "0.0.1", description = """
-    一些工具集合
+    一些工具集合.
 """
 )
 class ToolsPlugin {
@@ -37,15 +37,21 @@ class ToolsPlugin {
                 plugin,
                 CommandSpec.builder().executor { src, _ ->
                     (src as? Player)?.let {
-                        val current = Point(it.position.x, it.position.z, it.rotation.x)
-                        var hasPoint = points[it.name]
-                        if (points.containsKey(it.name)) {
-                            if (hasPoint == null) hasPoint = mutableListOf()
-                            if (hasPoint.size > 10) {
-                                hasPoint.clear()
-                            }
+                        var w = it.rotation.y
+                        w = when {
+                            w > 180.0 -> w - 360.0
+                            w < -180.0 -> w + 360.0
+                            else -> it.rotation.y
+                        }
+                        val current = Point(it.position.x, it.position.z, w)
+                        val hasPoint = points[it.name]
+                        if (hasPoint == null)
+                            points[it.name] = mutableListOf(current)
+                        else {
+                            if (hasPoint.size >= 10) hasPoint.clear()
                             hasPoint.add(current)
                         }
+                        it.sendMessage(Text.of("add point => [x: ${current.x} ,z: ${current.z} ,facing: ${current.facing}]"))
                     }
                     CommandResult.success()
                 }.build(), "recordeye"
@@ -63,6 +69,16 @@ class ToolsPlugin {
             )
             register(
                 plugin,
+                CommandSpec.builder().executor { src, _ ->
+                    (src as? Player)?.let {
+                        points[it.name]?.clear()
+                        it.sendMessage(Text.of("clear record points"))
+                    }
+                    CommandResult.success()
+                }.build(), "recordeyeclear"
+            )
+            register(
+                plugin,
                 CommandSpec.builder().arguments(
                     GenericArguments.integer(Text.of("point 1 index")),
                     GenericArguments.integer(Text.of("point 2 index"))
@@ -73,15 +89,15 @@ class ToolsPlugin {
                         require(p1 >= 0)
                         require(p2 >= 0)
                         val records = points[it.name]
-                        if (records.isNullOrEmpty() || records.size < p1 + 1)
+                        if (records.isNullOrEmpty() || records.size < p1.coerceAtLeast(p2) + 1) {
                             src.sendMessage(Text.of("records not enough!"))
-                        else {
+                        } else {
                             val result = records[p1].guess(records[p2])
                             src.sendMessage(Text.of("I guess [x= ${result.x}, z= ${result.z}]"))
                         }
                     }
                     CommandResult.success()
-                }.build(), "recordguess"
+                }.build(), "recordeyeguess"
             )
         }
         logger.info("rubi's tools kit loaded!")
